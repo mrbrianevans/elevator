@@ -8,7 +8,7 @@ tk = Tk()
 canvas = Canvas(tk, width=1000, height=1000)
 tk.title("Elavator")
 canvas.pack()
-
+total_wait_time = 0
 shaft = canvas.create_rectangle(200, 197, 400, 803)
 elavator = canvas.create_rectangle(203, 200, 397, 300, fill='black')
 status = canvas.create_text(200, 150, text="STATUS")
@@ -93,20 +93,41 @@ def populate(population=5):
 
 
 def stop_elavator(floor):
-    time.sleep(1)
-    for peep in peeps:
-        if peep.arrived(floor):
-            peep.finished = True
-            canvas.delete(peep.animation)
+    global total_wait_time
+    time.sleep(0.5)
+    buttons[floor] = 'none'
+
+    for person in peeps:
+        if not person.finished:
+            total_wait_time += 1
+            if person.start_floor == floor and not person.in_elevator:
+                person.in_elevator = True
+                canvas.itemconfig(person.animation, fill='grey')
+    time.sleep(0.5)
+
+def let_out(floor):
+    for person in peeps:
+        if person.arrived(floor) and person.in_elevator:
+            person.finished = True
+            person.in_elevator = False
+            pos = canvas.coords(person.animation)
+            print("person", person.id, "started at floor", person.start_floor, "and arrived at", person.target_floor)
+            canvas.move(person.animation, 2*(300-(pos[0]+pos[2])/2), person.distance)
+            tk.update()
 
 
 def baseline():
+
     while True:
+        print(total_wait_time)
+        populate(3)
         for i in range(5):
+            let_out(5 - i)
             if not buttons[5 - i] == 'none':
                 stop_elavator(5 - i)
             elevator_down()
         for i in range(5):
+            let_out(i)
             if not buttons[i] == 'none':
                 stop_elavator(i)
             elevator_up()
