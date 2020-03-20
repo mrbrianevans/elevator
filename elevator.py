@@ -38,7 +38,6 @@ tk.update()
 
 people = [0] * NUMBER_OF_FLOORS
 arrivals = [0] * NUMBER_OF_FLOORS
-arrivals_hundred = 0
 peeps = []
 buttons = ['none'] * NUMBER_OF_FLOORS
 
