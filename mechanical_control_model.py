@@ -153,10 +153,10 @@ def smart_solution(number_of_people, number_of_floors, animate: bool = True):
             offset = floor_population[person.start_floor] * 13
             person.animation = canvas.create_oval(185 - offset,
                                                   190 + (
-                                                              number_of_floors - person.start_floor) * floor_height,
+                                                          number_of_floors - person.start_floor) * floor_height,
                                                   195 - offset,
                                                   200 + (
-                                                              number_of_floors - person.start_floor) * floor_height,
+                                                          number_of_floors - person.start_floor) * floor_height,
                                                   fill="black")
             tk.update()
         floor_population[person.start_floor] += 1
@@ -170,7 +170,9 @@ def smart_solution(number_of_people, number_of_floors, animate: bool = True):
         for person in total_population:
             person.wait_time += 1 if not person.finished else 0
             if person.waiting() and person.start_floor == elevator_floor and len(
-                    elevator_population) < 6:  # person gets in
+                    elevator_population) < 6 and (
+                    (elevator_direction == 1 and person.target_floor < target_floor) or (
+                    elevator_direction == -1 and person.target_floor > target_floor) or elevator_floor == target_floor):  # person gets in
                 elevator_population.append(person)
                 person.in_elevator = True
                 floor_population[elevator_floor] -= 1
@@ -191,49 +193,146 @@ def smart_solution(number_of_people, number_of_floors, animate: bool = True):
                                           floor_population) - len(elevator_population))))
                     canvas.itemconfig(waiting_label,
                                       text="Waiting - " + str(sum(floor_population)))
-        if target_floor == elevator_floor and sum(floor_population) > 0:
-            in_elevator_buttons = [False] * number_of_floors
-            directional_vote = 0
-            for person in elevator_population:
-                in_elevator_buttons[person.target_floor] = True
-                directional_vote += 1 if person.target_floor > elevator_floor else -1
+        # This is the new version
+        if target_floor == elevator_floor and len(
+                elevator_population) == 0:  # the elevator is empty
+            if sum(floor_population) == 0:  # the elevator's job is finished
+                break
+            else:  # This indicates there are people waiting for the lift
+                directional_vote = 0
+                lowest_floor = min(
+                    [floor for floor in range(number_of_floors) if bool(floor_population[floor])])
+                highest_floor = max(
+                    [floor for floor in range(number_of_floors) if bool(floor_population[floor])])
+                for i in range(number_of_floors):
+                    if bool(floor_population[i]):  # If the button has been pressed on each floor
+                        if i > elevator_floor:
+                            directional_vote += 1
+                        elif i < elevator_floor:
+                            directional_vote -= 1
+                if directional_vote < 0:
+                    elevator_direction = -1
+                    target_floor = lowest_floor
+                    if animate:
+                        print(
+                            "Directional vote < 0 and sum(floor_population)>0. decided to go down to floor",
+                            target_floor)
+                elif directional_vote > 0:
+                    elevator_direction = 1
+                    target_floor = highest_floor
+                    if animate:
+                        print(
+                            "Directional vote > 0 and sum(floor_population)>0. decided to go up to floor",
+                            target_floor)
+                elif directional_vote == 0:  # there is equal number of people above and below
+                    assert lowest_floor < elevator_floor, "lowest_floor={}, elevator_floor={}".format(
+                        lowest_floor, elevator_floor)
+                    assert highest_floor > elevator_floor, "highest_floor={}, elevator_floor={}".format(
+                        highest_floor, elevator_floor)
+                    if elevator_floor - lowest_floor < highest_floor - elevator_floor:
+                        elevator_direction = -1
+                        target_floor = lowest_floor
+                    elif elevator_floor - lowest_floor > highest_floor - elevator_floor:
+                        elevator_direction = 1
+                        target_floor = highest_floor
+                    else:  # if they are equal it will go down
+                        elevator_direction = -1
+                        target_floor = lowest_floor
+                        print("Biased towards down when people waiting")
+        elif target_floor == elevator_floor and len(
+                elevator_population) > 0:  # the elevator is populated
+            directional_vote = sum([1 if person.target_floor > elevator_floor else -1 for person in
+                                    elevator_population])
+            lowest_floor = min([person.target_floor for person in elevator_population])
+            highest_floor = max([person.target_floor for person in elevator_population])
             if directional_vote == 0:
-                buttons_above_pressed = [floor for floor in
-                                         range(elevator_floor + 1, number_of_floors) if
-                                         bool(floor_population[floor])]
-                buttons_below_pressed = [floor for floor in range(elevator_floor) if
-                                         bool(floor_population[floor])]
-                elevator_direction = 1 if len(buttons_above_pressed) > len(buttons_below_pressed) else -1
-                target_floor = (min(buttons_below_pressed) if elevator_direction == -1 else max(buttons_above_pressed)) if not buttons_above_pressed == buttons_below_pressed else elevator_floor+elevator_direction
-            elif directional_vote < 0:
-                elevator_direction = -1
-                furthest_floor = min([person.target_floor for person in elevator_population])
-                target_floor = furthest_floor
+                assert lowest_floor < elevator_floor, "2lowest_floor={}, elevator_floor={}".format(
+                    lowest_floor, elevator_floor)
+                assert highest_floor > elevator_floor, "2highest_floor={}, elevator_floor={}".format(
+                    highest_floor, elevator_floor)
+                if elevator_floor - lowest_floor < highest_floor - elevator_floor:
+                    elevator_direction = -1
+                    target_floor = lowest_floor
+                elif elevator_floor - lowest_floor > highest_floor - elevator_floor:
+                    elevator_direction = 1
+                    target_floor = highest_floor
+                else:  # if they are equal it will go down
+                    elevator_direction = -1
+                    target_floor = lowest_floor
+                    print("Biased towards down when people in elevator")
             elif directional_vote > 0:
                 elevator_direction = 1
-                furthest_floor = max([person.target_floor for person in elevator_population])
-                target_floor = furthest_floor
-        elif target_floor == elevator_floor and len(elevator_population) > 0:
-            in_elevator_buttons = [False] * number_of_floors
-            directional_vote = 0
-            for person in elevator_population:
-                in_elevator_buttons[person.target_floor] = True
-                directional_vote += 1 if person.target_floor > elevator_floor else -1
-            if directional_vote == 0:
-                elevator_direction = 1 if elevator_floor < number_of_floors/2 else -1
-                target_floor = elevator_floor+elevator_direction
+                target_floor = highest_floor
             elif directional_vote < 0:
                 elevator_direction = -1
-                furthest_floor = min([person.target_floor for person in elevator_population])
-                target_floor = furthest_floor
-            elif directional_vote > 0:
-                elevator_direction = 1
-                furthest_floor = max([person.target_floor for person in elevator_population])
-                target_floor = furthest_floor
-        elevator_direction = 1 if target_floor == -1 else elevator_direction
-        elevator_direction = -1 if target_floor == number_of_floors else elevator_direction
-        target_floor = elevator_floor + elevator_direction if target_floor == elevator_floor else target_floor
+                target_floor = lowest_floor
+            if animate:
+                print("The directional vote was", "equal" if directional_vote == 0 else (
+                    "to go " + "up" if directional_vote > 1 else "down"))
 
+        # This is the broken version
+        # if target_floor == elevator_floor and sum(floor_population) > 0:
+        #     in_elevator_buttons = [False] * number_of_floors
+        #     directional_vote = 0
+        #     for person in elevator_population:
+        #         in_elevator_buttons[person.target_floor] = True
+        #         directional_vote += 1 if person.target_floor > elevator_floor else -1
+        #     if directional_vote == 0:
+        #         buttons_above_pressed = [floor for floor in
+        #                                  range(elevator_floor + 1, number_of_floors) if
+        #                                  bool(floor_population[floor])]
+        #         buttons_below_pressed = [floor for floor in range(elevator_floor) if
+        #                                  bool(floor_population[floor])]
+        #         elevator_direction = 1 if len(buttons_above_pressed) > len(
+        #             buttons_below_pressed) else -1
+        #         target_floor = (min(buttons_below_pressed) if elevator_direction == -1 else max(
+        #             buttons_above_pressed)) if not buttons_above_pressed == buttons_below_pressed else elevator_floor + elevator_direction
+        #         print("The elevator is full" if len(
+        #             elevator_population) == 6 else "The elevator has spare capacity to pick people up")
+        #         print("Directional vote == 0 and sum(floor_population)>0. Decided to go",
+        #               "down" if elevator_direction == -1 else "up", "to floor", target_floor,
+        #               "because there are", floor_population[target_floor], "people on floor",
+        #               target_floor)
+        #         print(floor_population, buttons_below_pressed, buttons_above_pressed)
+        #     elif directional_vote < 0:
+        #         elevator_direction = -1
+        #         furthest_floor = min([person.target_floor for person in elevator_population])
+        #         target_floor = furthest_floor
+        #         print("Directional vote < 0 and sum(floor_population)>0")
+        #     elif directional_vote > 0:
+        #         elevator_direction = 1
+        #         furthest_floor = max([person.target_floor for person in elevator_population])
+        #         target_floor = furthest_floor
+        #         print("Directional vote > 0 and sum(floor_population)>0")
+        # elif target_floor == elevator_floor and len(elevator_population) > 0:
+        #     in_elevator_buttons = [False] * number_of_floors
+        #     directional_vote = 0
+        #     for person in elevator_population:
+        #         in_elevator_buttons[person.target_floor] = True
+        #         directional_vote += 1 if person.target_floor > elevator_floor else -1
+        #     if directional_vote == 0:
+        #         elevator_direction = 1 if elevator_floor < number_of_floors / 2 else -1
+        #         target_floor = elevator_floor + elevator_direction
+        #         print("CYCLICAL MIDDLE ERROR")
+        #     elif directional_vote < 0:
+        #         elevator_direction = -1
+        #         furthest_floor = min([person.target_floor for person in elevator_population])
+        #         target_floor = furthest_floor
+        #         print("Directional vote < 0 and sum(elevator_population)>0")
+        #     elif directional_vote > 0:
+        #         elevator_direction = 1
+        #         furthest_floor = max([person.target_floor for person in elevator_population])
+        #         target_floor = furthest_floor
+        #         print("Directional vote > 0 and sum(elevator_population)>0")
+        # elif target_floor == elevator_floor:
+        #     print("reached the end")
+        #     break
+        if (target_floor == -1 or target_floor == number_of_floors):
+            print("ERROR: target floor:", target_floor, "- elevator floor:", elevator_floor)
+        # elevator_direction = 1 if target_floor == -1 else elevator_direction
+        # elevator_direction = -1 if target_floor == number_of_floors else elevator_direction
+        # target_floor = elevator_floor + elevator_direction if target_floor == elevator_floor else target_floor
+        # print("Elevator on floor", elevator_floor)
         if animate:
             print("Target floor:", target_floor, "and direction", elevator_direction,
                   "Current floor:", elevator_floor)
@@ -243,6 +342,11 @@ def smart_solution(number_of_people, number_of_floors, animate: bool = True):
                 canvas.move(elevator, 0, -elevator_direction)  # animate the lift moving
             time.sleep(0.2)
         elevator_floor += elevator_direction
+        if elevator_floor > number_of_floors or elevator_floor < 0:
+            print("Massive error has occured. Train off rails. Elevator is on floor",
+                  elevator_floor)
+        if (elevator_floor == -2 or elevator_floor == number_of_floors + 2):
+            exit()
     # This processes the wait times at the end of the simulation
 
     wait_times = []
@@ -321,7 +425,9 @@ def graph_one_simulation_frequency(algorithm, people, floors, iterations):
     plt.style.use("fivethirtyeight")
     plt.figure(figsize=(12.80, 7.20))
     plt.hist(x=results, bins=x_axis, density=True, color="#eb4034")
-    plt.plot([average, average], [0, 0.2], color="#591208", label="Average")
+    plt.plot([average, average], [0, plt.ylim()[1]], color="#591208",
+             label="Average=" + str(average))
+    plt.xlim(xmin=0, xmax=people * floors / 3)
     plt.xlabel("Wait time")
     plt.ylabel("Frequency density")
     plt.legend()
@@ -333,15 +439,30 @@ def graph_one_simulation_frequency(algorithm, people, floors, iterations):
     plt.show()
 
 
-if __name__ == "__main__":
+def draw_box_plots(people, floors, iterations):
+    custom_results = realise_iterations(smart_solution, people, floors, iterations)
+    basline_results = realise_iterations(baseline_mechanical, people, floors, iterations)
+    plt.style.use("fivethirtyeight")
+    plt.figure(figsize=(16, 6))
+    plt.boxplot(x=(custom_results, basline_results), vert=False, notch=False,
+                labels=(["Custom algorithm", "Basline algorithm"]), autorange=True)
+    plt.xlim(xmin=0)
+    plt.xlabel("Average wait time")
+    plt.title("Average wait times with {} floors and {} people".format(floors, people))
+    plt.show()
 
+if __name__ == "__main__":
     start_time = time.perf_counter()
-    graph_one_simulation_frequency(smart_solution, 10, 10, 1_000)
-    graph_one_simulation_frequency(baseline_mechanical, 10, 10, 1_000)
+    draw_box_plots(20, 20, 1_000)
+    # graph_one_simulation_frequency(smart_solution, 10, 20, 1_000)
+    # custom_time = time.perf_counter()
+    # print("Custom solution finished in", custom_time-start_time, "seconds")
+    # graph_one_simulation_frequency(baseline_mechanical, 10, 20, 1_000)
+    # print("Baseline solution finished in", time.perf_counter()-custom_time, "seconds")
     # run_many_simulations(baseline_mechanical, max_people=50, max_floors=50)
 
-    # baseline_mechanical(10, 10, True)
-    smart_solution(20, 10, True)
+    # baseline_mechanical(20, 10, False)
+    # (smart_solution(20, 10, True))
 
     finish_time = time.perf_counter()
-    print("Time taken: {}s".format(finish_time - start_time))
+    print("Total time taken: {}s".format(finish_time - start_time))
