@@ -15,12 +15,12 @@ class Person:
         self.target_floor = random.randint(0, floors-1)
         while self.start_floor == self.target_floor:
             self.target_floor = random.randint(0, floors-1)
-        self.direction = ('up' if self.start_floor < self.target_floor else 'down')
+        self.direction = (1 if self.start_floor < self.target_floor else -1)
         self.distance = floorheight * (self.start_floor - self.target_floor)
         self.finished = False
         self.in_elevator = False
         self.wait_time = 0
-
+        self.elevator_spot = False
     def arrived(self, floor):
         """Returns true if the person has arrived at where they wanted to go"""
         return True if floor == self.target_floor else False
