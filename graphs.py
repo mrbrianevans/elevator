@@ -98,14 +98,14 @@ def heatmap_comparison(max_people, max_floors):
 
 def work_out_one_cell(floor, people):
     baseline_results = realise_iterations('baseline', people, floor, 15000)
-    custom_results = realise_iterations('mysolution', people, floor, 15000)
+    custom_results = realise_iterations('newsolution', people, floor, 15000)
     return sum(baseline_results) / len(baseline_results) - sum(custom_results) / len(
         custom_results)
 
 
 def work_out_whole_floor(floor, people):
     print("Starting to work out floor {} at {}".format(floor, datetime.now().strftime("%H:%M:%S")))
-    interval = 1 if people < 20 else round(people / 20)
+    interval = 1 if people < 20 else round(people / 10)
     starting_time = time.perf_counter()
     row = [work_out_one_cell(floor, p) for p in range(0, people + 1, interval)]
     print("Finished floor {} in {}s".format(floor, round(time.perf_counter() - starting_time)))
@@ -135,13 +135,14 @@ def heatmap_comparison_multicored(max_people, max_floors, draw_heatmap: bool = T
         plt.xlim(2, len(results[0]) - 1)
         plt.ylim(2, len(results) - 1)
         plt.xticks(np.arange(0, len(results[0]), 1), [str(int(round(i))) for i in
-                                                      np.arange(0, max_people,
+                                                      np.arange(0, max_people + 1,
                                                                 (max_people + 1) / len(
                                                                     results[0]))])
         plt.yticks(np.arange(0, len(results), 1), [str(int(round(i))) for i in
-                                                   np.arange(0, max_floors,
+                                                   np.arange(0, max_floors + 1,
                                                              (max_floors + 1) / len(results))])
-        plt.title('Difference in efficiency between the baseline and my algorithm')
+        plt.title('Difference in efficiency between the baseline and my algorithm',
+                  fontname='Cambria', fontsize=24)
         colourbar = plt.colorbar()
         colourbar.set_label("Difference in average wait time", fontname='Cambria')
         plt.savefig("heatmap-{}s.png".format(round(finishing_time - starting_time)), format="png")
@@ -159,9 +160,10 @@ def interpolate_heatmap(results, people, floors):
     plt.xlim(2, len(results[0]) - 1)
     plt.ylim(2, len(results) - 1)
     plt.xticks(np.arange(0, len(results[0]), 1),
-               [str(int(round(i))) for i in np.arange(0, people + 1, (people) / len(results[0]))])
+               [str(int(round(i))) for i in
+                np.arange(0, people + 1, (people + 1) / len(results[0]))])
     plt.yticks(np.arange(0, len(results), 1),
-               [str(int(round(i))) for i in np.arange(0, floors + 1, (floors) / len(results))])
+               [str(int(round(i))) for i in np.arange(0, floors + 1, (floors + 1) / len(results))])
     plt.title('Difference in efficiency between the baseline and my algorithm',
               fontname='Cambria', fontsize=24)
     colourbar = plt.colorbar()
@@ -197,7 +199,7 @@ def graph_one_simulation_S_curve(algorithm, people, floors, iterations):
 
 def graph_both_simulation_S_curve(people, floors, iterations):
     baseline_args = ('baseline', people, floors, iterations)
-    custom_args = ('mysolution', people, floors, iterations)
+    custom_args = ('newsolution', people, floors, iterations)
     # args = [baseline_args, custom_args]
     # baseline_results, custom_results = multiprocessing.Pool().starmap(realise_iterations, args)
     baseline_results = realise_iterations_multicored(*baseline_args)
@@ -222,7 +224,7 @@ def graph_both_simulation_S_curve(people, floors, iterations):
     baseline_points = find_data_points(baseline_results)
     custom_points = find_data_points(custom_results)
     plt.plot(*baseline_points, label="Baseline algorithm")
-    plt.plot(*custom_points, label="Custom algorithm")
+    plt.plot(*custom_points, label="New algorithm")
     plt.legend()
 
     def find_axis_limits(x1_values, y1_values, x2_values, y2_values):
@@ -257,7 +259,7 @@ def graph_both_simulation_S_curve(people, floors, iterations):
 
 
 def graph_one_simulation_frequency(algorithm, people, floors, iterations):
-    results = realise_iterations(algorithm, people, floors, iterations)
+    results = realise_iterations_multicored(algorithm, people, floors, iterations)
     maximum = round(max(results)) + 1
     minimum = round(min(results)) - 1
     average = sum(results) / len(results)

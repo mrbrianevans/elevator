@@ -232,14 +232,13 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                                                     bool(floor_population[floor])])  # on floors
             highest_floor = max(floors_people_want_to_go_to)
             lowest_floor = min(floors_people_want_to_go_to)
-
+            if elevator_direction == -1:
+                target_floor = lowest_floor
+            elif elevator_direction == 1:
+                target_floor = highest_floor
+            elevator_direction = -1 if target_floor < elevator_floor else 1
             if elevator_floor == target_floor:
                 elevator_direction *= -1
-            if elevator_direction == 1:
-                target_floor = highest_floor
-            elif elevator_direction == -1:
-                target_floor = lowest_floor
-            elevator_direction = 1 if target_floor > elevator_floor else -1
         if animate:
             print('Target floor:', target_floor, 'and direction', elevator_direction,
                   'Current floor:', elevator_floor)
