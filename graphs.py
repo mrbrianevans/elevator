@@ -114,11 +114,12 @@ def work_out_whole_floor(floor, people):
 
 def heatmap_comparison_multicored(max_people, max_floors, draw_heatmap: bool = True):
     starting_time = time.perf_counter()
-    interval = 1 if max_floors < 20 else round(max_floors / 20)
+    interval = 1 if max_floors < 20 else round(max_floors / 10)
     top_args = [(i, max_people) for i in range(0, max_floors + 1, interval)]
     cpus = multiprocessing.cpu_count()
     print("Your computer has {} cpus".format(cpus))
-    p = multiprocessing.Pool(cpus)
+    print("Working out heatmap for {}-{} floors in steps of {}".format(0, max_floors, interval))
+    p = multiprocessing.Pool(cpus - 4)
     results = p.starmap(work_out_whole_floor, top_args)
     p.close()
     p.join()
