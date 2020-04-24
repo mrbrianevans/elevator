@@ -10,7 +10,7 @@ from Elevator.PersonFile import Person
 
 def single_simulation(algorithm, number_of_people, number_of_floors, animate=True,
                       animation_speed=0.1):
-    assert algorithm == "baseline" or algorithm == "mysolution"
+    assert algorithm == "baseline" or algorithm == "mysolution" or algorithm == "newsolution"
     if number_of_floors < 2 or number_of_people < 2:
         return 0  # simulations can't run on less than 2 floors or 2 people
 
@@ -124,11 +124,15 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                                       text='Inside elevator - ' + str(len(elevator_population)))
                     canvas.itemconfig(waiting_label,
                                       text='Waiting - ' + str(sum(floor_population)))
+        if sum(floor_population) + len(elevator_population) == 0:
+            break
         if algorithm == "baseline":
             if elevator_floor == 0:
                 elevator_direction = 1
+                target_floor = number_of_floors - 1
             elif elevator_floor == number_of_floors - 1:
                 elevator_direction = -1
+                target_floor = 0
         elif algorithm == "mysolution":
             if len(elevator_population) == MAX_ELEVATOR_CAPACITY and target_floor == elevator_floor:
                 # if the elevator is full, then conduct a vote of the people inside.
@@ -217,6 +221,25 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                 print("elevator is on floor", elevator_floor)
                 exit()
             elevator_direction = 1 if target_floor > elevator_floor else -1
+        elif algorithm == "newsolution":  # This is the more efficient solution than the baseline
+            elevator_buttons = [False] * number_of_floors  # reset elevator buttons
+            for person in elevator_population:
+                elevator_buttons[person.target_floor] = True
+            floors_people_want_to_go_to = [i for i in range(len(elevator_buttons)) if
+                                           elevator_buttons[i]]  # in elevator
+            if len(elevator_population) < MAX_ELEVATOR_CAPACITY:
+                floors_people_want_to_go_to.extend([floor for floor in range(number_of_floors) if
+                                                    bool(floor_population[floor])])  # on floors
+            highest_floor = max(floors_people_want_to_go_to)
+            lowest_floor = min(floors_people_want_to_go_to)
+
+            if elevator_floor == target_floor:
+                elevator_direction *= -1
+            if elevator_direction == 1:
+                target_floor = highest_floor
+            elif elevator_direction == -1:
+                target_floor = lowest_floor
+            elevator_direction = 1 if target_floor > elevator_floor else -1
         if animate:
             print('Target floor:', target_floor, 'and direction', elevator_direction,
                   'Current floor:', elevator_floor)
@@ -245,42 +268,3 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
         print(number_of_floors, 'floor building with', number_of_people, 'people')
         print('Average wait time of', average_wait_time, 'when using', algorithm, '\n\n')
     return average_wait_time  # Average wait time per person in this specific simulation
-
-
-if __name__ == '__main__':
-    print("Simulation started at {}".format(datetime.now().strftime("%H:%M:%S")))
-    start_time = time.perf_counter()
-    # draw_box_plots(20, 20, 1_000)
-    # graph_one_simulation_frequency(custom_solution, 10, 20, 100)
-    # graph_one_simulation_S_curve(custom_solution, 10, 20, 1_000)
-    # graph_both_simulation_S_curve(floors=25, people=100, iterations=15_000)
-    # print(*heatmap_comparison_multicored(100, 100, False))
-    # interpolate_heatmap(*heatmap_comparison_multicored(100, 100))
-    # interpolate_heatmap(*heatmap_comparison_multicored(25, 10))
-    # interpolate_heatmap(*heatmap_comparison_multicored(25, 25))
-    # heatmap(custom_solution, 20, 20)
-    # custom_time = time.perf_counter()
-    # print('Custom solution finished in', custom_time-start_time, 'seconds')
-    # graph_one_simulation_frequency(baseline_mechanical, 10, 20, 1_000)
-    # print('Baseline solution finished in', time.perf_counter()-custom_time, 'seconds')
-    # run_many_simulations(baseline_mechanical, max_people=50, max_floors=50)
-    #
-    # baseline_mechanical(100, 25, True)
-    # (custom_solution(100, 20, True))
-    # single_simulation("baseline", 50, 10, animation_speed=1)
-    single_simulation("mysolution", 50, 10, animation_speed=1)
-    # print("Baseline averaged", sum(realise_iterations_multicored(custom_solution, 100, 25, 100_000))/100_000, "for 100 people and 25 floors")
-    # single_core_count = 0
-    # for m in range(10):  # should take around 500 seconds
-    #     single_core_count += sum(realise_iterations(custom_solution, 100, 100, 500))
-    # print(single_core_count)
-    # custom_time = time.perf_counter()
-    # print('Singlecored solution finished in', custom_time-start_time, 'seconds')
-    # multi_core_count = 0
-    # for m in range(10):  # should take around 60 seconds
-    #     multi_core_count += sum(realise_iterations_multicored(custom_solution, 100, 100, 500))
-    # print(multi_core_count)
-    # print('Multicored solution finished in', time.perf_counter() - custom_time, 'seconds')
-
-    finish_time = time.perf_counter()
-    print('Total time taken: {}s'.format(finish_time - start_time))
