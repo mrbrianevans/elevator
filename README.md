@@ -23,10 +23,10 @@ Example output:
 <br><br>
 This line will run simulations with the efficient algorithm on every combination of floors and people up to 100x100, and graph the results in a heatmap
 ```
-heatmap("efficient", 100, 100)
+heatmap("baseline", 100, 100)
 ```
 Example output: 
-![Image of heatmap](heatmap-1787s.png)
+![Example of 100x100 heatmap](100x100baselineheatmap.png)
 <br><br>
 This line will run simulations with the baseline and efficient algorithm on all combinations of floors and people up to 100x100, and graph the difference in their average wait times for each combination in the form of a heatmap where green represents the efficient algorithm being more efficient than the baseline.
 ```

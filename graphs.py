@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 
 
 def realise_iterations(algorithm, people, floors, iterations):
+    """This method runs many simulations on 1 set of floors, people to find an average"""
     starting_time = time.perf_counter()
     results = [single_simulation(algorithm, people, floors, False) for j in
                range(round(iterations / 2))]
@@ -20,6 +21,7 @@ def realise_iterations(algorithm, people, floors, iterations):
 
 
 def realise_iterations_multicored(algorithm, people, floors, iterations):
+    """This is just a multicored version of realise_iterations()"""
     starting_time = time.perf_counter()
     p = multiprocessing.Pool(multiprocessing.cpu_count() - 4)
     args = [(algorithm, people, floors, False) for j in range(round(iterations / 2))]
@@ -41,15 +43,19 @@ def realise_iterations_multicored(algorithm, people, floors, iterations):
 
 
 def heatmap(algorithm, max_people, max_floors):
+    """This function draws a heatmap for a single algorithm
+    from 0-max_people on the x-axis and
+    from 0-max_floors on the y-axis
+    :returns the data in a form that can be drawn with the interpolate_heatmap() function"""
     starting_time = time.perf_counter()
     results = np.zeros(shape=(max_floors, max_people))
     for i in range(max_floors):
         for j in range(max_people):
             result = realise_iterations_multicored(algorithm, j, i, 500)
             results[i, j] = sum(result) / len(result)
-        print('With', i, 'floors, data is', results[i])
+        # print('With', i, 'floors, data is', results[i])
         print(
-            'Simulation {}% complete in {} seconds'.format(round((i - 2) / (max_floors - 2) * 100),
+            'Simulation {}% complete in {} seconds'.format(round(i / max_floors * 100),
                                                            round(
                                                                time.perf_counter() - starting_time)))
     print(results)
@@ -63,7 +69,7 @@ def heatmap(algorithm, max_people, max_floors):
     plt.title('Heatmap showing the relative efficiency of {} algorithm'.format(algorithm))
     plt.colorbar()
     plt.show()
-    return results
+    return results, max_people, max_floors
 
 
 def heatmap_comparison(max_people, max_floors):
@@ -72,7 +78,7 @@ def heatmap_comparison(max_people, max_floors):
     for i in range(2, max_floors):
         for j in range(2, max_people):
             baseline_results = realise_iterations_multicored('baseline', j, i, 15000)
-            custom_results = realise_iterations_multicored('mysolution', j, i, 15000)
+            custom_results = realise_iterations_multicored('efficient', j, i, 15000)
             results[i, j] = sum(baseline_results) / len(baseline_results) - sum(
                 custom_results) / len(
                 custom_results)
@@ -97,8 +103,8 @@ def heatmap_comparison(max_people, max_floors):
 
 
 def work_out_one_cell(floor, people):
-    baseline_results = realise_iterations('baseline', people, floor, 15000)
-    custom_results = realise_iterations('newsolution', people, floor, 15000)
+    baseline_results = realise_iterations('baseline', people, floor, 20000)
+    custom_results = realise_iterations('newsolution', people, floor, 20000)
     return sum(baseline_results) / len(baseline_results) - sum(custom_results) / len(
         custom_results)
 
@@ -135,12 +141,12 @@ def heatmap_comparison_multicored(max_people, max_floors, draw_heatmap: bool = T
         plt.xlim(2, len(results[0]) - 1)
         plt.ylim(2, len(results) - 1)
         plt.xticks(np.arange(0, len(results[0]), 1), [str(int(round(i))) for i in
-                                                      np.arange(0, max_people + 1,
-                                                                (max_people + 1) / len(
-                                                                    results[0]))])
+                                                      np.arange(0, max_people,
+                                                                (max_people) / len(
+                                                                    results[0]) + 1)])
         plt.yticks(np.arange(0, len(results), 1), [str(int(round(i))) for i in
-                                                   np.arange(0, max_floors + 1,
-                                                             (max_floors + 1) / len(results))])
+                                                   np.arange(0, max_floors,
+                                                             (max_floors) / len(results) + 1)])
         plt.title('Difference in efficiency between the baseline and my algorithm',
                   fontname='Cambria', fontsize=24)
         colourbar = plt.colorbar()
@@ -161,9 +167,10 @@ def interpolate_heatmap(results, people, floors):
     plt.ylim(2, len(results) - 1)
     plt.xticks(np.arange(0, len(results[0]), 1),
                [str(int(round(i))) for i in
-                np.arange(0, people + 1, (people + 1) / len(results[0]))])
+                np.arange(0, people + 1, round((people) / len(results[0]) + 1))])
     plt.yticks(np.arange(0, len(results), 1),
-               [str(int(round(i))) for i in np.arange(0, floors + 1, (floors + 1) / len(results))])
+               [str(int(round(i))) for i in
+                np.arange(0, floors + 1, round((floors) / len(results) + 1))])
     plt.title('Difference in efficiency between the baseline and my algorithm',
               fontname='Cambria', fontsize=24)
     colourbar = plt.colorbar()
@@ -198,6 +205,8 @@ def graph_one_simulation_S_curve(algorithm, people, floors, iterations):
 
 
 def graph_both_simulation_S_curve(people, floors, iterations):
+    # Need to add a average line to these plots ASAP!
+
     baseline_args = ('baseline', people, floors, iterations)
     custom_args = ('newsolution', people, floors, iterations)
     # args = [baseline_args, custom_args]
@@ -224,7 +233,7 @@ def graph_both_simulation_S_curve(people, floors, iterations):
     baseline_points = find_data_points(baseline_results)
     custom_points = find_data_points(custom_results)
     plt.plot(*baseline_points, label="Baseline algorithm")
-    plt.plot(*custom_points, label="New algorithm")
+    plt.plot(*custom_points, label="Efficient algorithm")
     plt.legend()
 
     def find_axis_limits(x1_values, y1_values, x2_values, y2_values):
