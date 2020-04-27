@@ -21,7 +21,7 @@ This line will run and animate a single simulation showing the efficient algorit
 single_simulation(algorithm="efficient", number_of_people=30, number_of_floors=10)
 ```
 Example output: 
-![Screenshot of simulation](simulation-example.PNG)
+![Screenshot of simulation](images/simulation-example.PNG)
 
  ### Heatmaps to graph
 
@@ -48,7 +48,7 @@ interpolate_heatmap(*heatmap_comparison(max_people=100, max_floors=100))
 
 This line will draw a histogram plot of the frequency of wait times for an algorithm. This is to see the distribution of wait times, and show the average.
 ```
-graph_single_algorithm_histogram("baseline", people=30, floors=10, iterations=100_000)
+graph_single_algorithm_histogram("efficient", people=30, floors=10, iterations=100_000)
 ```
 ![Example histogram](images/histogram-example.png)
 
@@ -61,7 +61,7 @@ graph_one_algorithm_frequency_curve("baseline", 30, 10, 10_000)
 
 This line will draw two frequency of the wait times comparing the baseline to my efficient algorithm, as well as their averages.
 ```
-graph_both_algorithms_frequency_curve(30, 10, 10_000)
+graph_both_algorithms_frequency_curve(30, 10, 100_000)
 ```
 Example output:
 ![A frequency curve comparing the baseline to my efficient algorithm](images/s-curve-both-example.png)

@@ -11,7 +11,7 @@ from Elevator.mechanical_control_model import single_simulation
 def realise_iterations(algorithm, people, floors, iterations):
     """This method runs many simulations on 1 set of (floors, people) to find an average"""
     starting_time = time.perf_counter()
-    results = [single_simulation(algorithm, people, floors, False) for j in
+    results = [single_simulation(algorithm, people, floors, 6, False) for j in
                range(round(iterations / 2))]
     print("Half way there on {}(foors={}, people={}) in {}s".format(algorithm, floors,
                                                                     people, round(
@@ -28,7 +28,7 @@ def realise_iterations_multicored(algorithm, people, floors, iterations):
     """
     starting_time = time.perf_counter()
     p = multiprocessing.Pool(multiprocessing.cpu_count() - 4)
-    args = [(algorithm, people, floors, False) for j in range(round(iterations / 2))]
+    args = [(algorithm, people, floors, 6, False) for j in range(round(iterations / 2))]
     results = p.starmap(single_simulation, args)
     p.close()
     p.join()
@@ -246,9 +246,10 @@ def graph_both_algorithms_frequency_curve(people, floors, iterations):
     efficient_points = find_data_points(efficient_results)
     plt.plot(*baseline_points, label="Baseline algorithm")
     plt.plot(*efficient_points, label="Efficient algorithm")
-    plt.plot([baseline_average, baseline_average], [0, plt.ylim()[1]], color='#2466c9',
+    ylim = plt.ylim()[1]
+    plt.plot([baseline_average, baseline_average], [0, ylim], color='#2466c9',
              label='Baseline average=' + str(round(baseline_average, 1)))
-    plt.plot([efficient_average, efficient_average], [0, plt.ylim()[1]], color='#c94824',
+    plt.plot([efficient_average, efficient_average], [0, ylim], color='#c94824',
              label='Efficient average=' + str(round(efficient_average, 1)))
     plt.legend()
 
@@ -277,9 +278,9 @@ def graph_both_algorithms_frequency_curve(people, floors, iterations):
     plt.xlabel('Wait time')
     plt.ylabel('Cumulative frequency')
     plt.title(
-        'Comparing averge wait time with {} floors, {} people\n{} simulations'.format(floors,
-                                                                                      people,
-                                                                                      iterations))
+        'Comparing average wait time with {} floors, {} people\n{} simulations'.format(floors,
+                                                                                       people,
+                                                                                       iterations))
     plt.show()
 
 
