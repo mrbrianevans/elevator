@@ -1,16 +1,37 @@
-from datetime import datetime
-import multiprocessing
 import time
 from tkinter import Tk, Canvas
-import matplotlib.colors
-import matplotlib.pyplot as plt
-import numpy as np
+
 from Elevator.PersonFile import Person
 
 
-def single_simulation(algorithm, number_of_people, number_of_floors, animate=True,
+def single_simulation(algorithm, number_of_people, number_of_floors, max_elevator_capacity=6,
+                      animate=True,
                       animation_speed=0.1):
-    assert algorithm == "baseline" or algorithm == "inefficient" or algorithm == "efficient"
+    """
+
+    :param algorithm:   This is the algorithm by which the elevator makes decisions about which
+                        floor to go to. There are three supported algorithms:
+                        'baseline', 'inefficient' and 'efficient'
+
+    :param number_of_people:        The number of people generated at the beginning of the simulation
+    :param number_of_floors:        The number of floors in the simulation
+                                    (when animating, its best to keep this under 25)
+    :param max_elevator_capacity:   The maximum number of people who can fit inside the elevator
+                                    at the same time
+
+    :param animate:     boolean (True or False) determining whether or not to animate the simulation
+                        . Its nice to look at, but if you are running many simulations to graph the
+                        results, its best to turn off
+    :param animation_speed:     This determines how long the animation takes by altering how fast
+                                the elevator moves, how fast the people move and how long the
+                                elevator waits at each floor
+    :return:    the average wait time of all the people in the simulation.
+                Measured for each person as one unit every floor the elevator travels and the person
+                 has not yet arrived at their destination
+    """
+    w_m = "That algorithm is not supported. Check the spelling or try " \
+          "'baseline' , 'inefficient' or 'efficient'"
+    assert algorithm == "baseline" or algorithm == "inefficient" or algorithm == "efficient", w_m
     if number_of_floors < 2 or number_of_people < 2:
         return 0  # simulations can't run on less than 2 floors or 2 people
 
@@ -18,7 +39,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
         600 / number_of_floors)  # This is for animating people. Total size is 600px
     total_population = []  # This will hold all the Person objects
     elevator_population = []  # This monitors how many people are in the elevator at any one time
-    MAX_ELEVATOR_CAPACITY = 6  # This restricts how many people can be in the elevator at any time
+    max_elevator_capacity = 6  # This restricts how many people can be in the elevator at any time
     # This monitors how many people are waiting on each floor for the lift
     floor_population = [0] * (number_of_floors + 1)
     elevator_floor = 0  # starts on ground zero floor
@@ -26,7 +47,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
     if animate:  # this sets up the canvas with the elevator and floors etc if animate is true
         animation_speed = 0.1  # This affects how long the animations take. Higher = longer
         arrivals_population = [0] * (number_of_floors + 1)  # This is for animating purposes only
-        elevator_animation = [0] * MAX_ELEVATOR_CAPACITY  # This is for people inside the elevator
+        elevator_animation = [0] * max_elevator_capacity  # This is for people inside the elevator
         tk = Tk()
         canvas = Canvas(tk, width=2000, height=1000)
         tk.title('Elevator - {} algorithm'.format(algorithm))
@@ -104,7 +125,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                                       text='Waiting - ' + str(sum(floor_population)))
         for person in total_population:  # for people to get into the elevator
             if person.waiting() and person.start_floor == elevator_floor and len(
-                    elevator_population) < MAX_ELEVATOR_CAPACITY and (
+                    elevator_population) < max_elevator_capacity and (
                     (
                             elevator_direction == person.direction or elevator_floor == 0 or elevator_floor == number_of_floors - 1 or elevator_floor == target_floor)):  # person gets in
                 elevator_population.append(person)
@@ -134,7 +155,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                 elevator_direction = -1
                 target_floor = 0
         elif algorithm == "inefficient":
-            if len(elevator_population) == MAX_ELEVATOR_CAPACITY and target_floor == elevator_floor:
+            if len(elevator_population) == max_elevator_capacity and target_floor == elevator_floor:
                 # if the elevator is full, then conduct a vote of the people inside.
                 elevator_buttons = [False] * number_of_floors  # reset elevator buttons
                 for person in elevator_population:
@@ -227,7 +248,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                 elevator_buttons[person.target_floor] = True
             floors_people_want_to_go_to = [i for i in range(len(elevator_buttons)) if
                                            elevator_buttons[i]]  # in elevator
-            if len(elevator_population) < MAX_ELEVATOR_CAPACITY:
+            if len(elevator_population) < max_elevator_capacity:
                 floors_people_want_to_go_to.extend([floor for floor in range(number_of_floors) if
                                                     bool(floor_population[floor])])  # on floors
             highest_floor = max(floors_people_want_to_go_to)

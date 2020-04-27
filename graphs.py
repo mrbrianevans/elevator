@@ -1,17 +1,15 @@
 import multiprocessing
 import time
 from datetime import datetime
-
-from pip._internal.utils import deprecation
-
-from Elevator.mechanical_control_model import single_simulation
 import numpy as np
 from matplotlib import colors
 from matplotlib import pyplot as plt
 
+from Elevator.mechanical_control_model import single_simulation
+
 
 def realise_iterations(algorithm, people, floors, iterations):
-    """This method runs many simulations on 1 set of floors, people to find an average"""
+    """This method runs many simulations on 1 set of (floors, people) to find an average"""
     starting_time = time.perf_counter()
     results = [single_simulation(algorithm, people, floors, False) for j in
                range(round(iterations / 2))]
@@ -24,7 +22,10 @@ def realise_iterations(algorithm, people, floors, iterations):
 
 
 def realise_iterations_multicored(algorithm, people, floors, iterations):
-    """This is just a multicored version of realise_iterations()"""
+    """
+    This is just a multicored version of realise_iterations(). It is designed to be used as a
+    helper method for the graphing functions, and should not be directly called
+    """
     starting_time = time.perf_counter()
     p = multiprocessing.Pool(multiprocessing.cpu_count() - 4)
     args = [(algorithm, people, floors, False) for j in range(round(iterations / 2))]
@@ -43,6 +44,24 @@ def realise_iterations_multicored(algorithm, people, floors, iterations):
                                                            round(
                                                                time.perf_counter() - starting_time)))
     return results
+
+
+def work_out_one_cell(floor, people):
+    """This is a helper method for the heatmaping function"""
+    baseline_results = realise_iterations('baseline', people, floor, 20000)
+    efficient_results = realise_iterations('efficient', people, floor, 20000)
+    return sum(baseline_results) / len(baseline_results) - sum(efficient_results) / len(
+        efficient_results)
+
+
+def work_out_whole_floor(floor, people):
+    """This is a helper method for the heatmap comparison function"""
+    print("Starting to work out floor {} at {}".format(floor, datetime.now().strftime("%H:%M:%S")))
+    interval = 1 if people < 20 else round(people / 10)
+    starting_time = time.perf_counter()
+    row = [work_out_one_cell(floor, p) for p in range(0, people + 1, interval)]
+    print("Finished floor {} in {}s".format(floor, round(time.perf_counter() - starting_time)))
+    return row
 
 
 def heatmap(algorithm, max_people, max_floors):
@@ -76,62 +95,27 @@ def heatmap(algorithm, max_people, max_floors):
     return results, max_people, max_floors
 
 
-# delete this function i think
-def heatmap_comparison(max_people, max_floors):
-    starting_time = time.perf_counter()
-    results = np.zeros(shape=(max_floors, max_people))
-    for i in range(2, max_floors):
-        for j in range(2, max_people):
-            baseline_results = realise_iterations_multicored('baseline', j, i, 15000)
-            custom_results = realise_iterations_multicored('efficient', j, i, 15000)
-            results[i, j] = sum(baseline_results) / len(baseline_results) - sum(
-                custom_results) / len(
-                custom_results)
-        print(
-            'Simulation {}% complete in {} seconds'.format(round((i - 2) / (max_floors - 2) * 100),
-                                                           round(
-                                                               time.perf_counter() - starting_time)))
-
-    print(results)
-    plt.style.use('fivethirtyeight')
-    plt.figure(figsize=(12.80, 7.20))
-    plt.pcolormesh(results, cmap='RdYlGn', norm=colors.DivergingNorm(vcenter=0))
-    plt.xlabel('Number of people')
-    plt.ylabel('Number of floors')
-    plt.xlim(2, max_people)
-    plt.ylim(2, max_floors)
-    plt.title('Difference in efficiency between the baseline and my algorithm',
-              fontname='Cambria', fontsize=24)
-    plt.colorbar()
-    plt.savefig("heatmap.png", format="png")
-    plt.show()
-    print(results)
-
-
-def work_out_one_cell(floor, people):
-    baseline_results = realise_iterations('baseline', people, floor, 20000)
-    custom_results = realise_iterations('efficient', people, floor, 20000)
-    return sum(baseline_results) / len(baseline_results) - sum(custom_results) / len(
-        custom_results)
-
-
-def work_out_whole_floor(floor, people):
-    print("Starting to work out floor {} at {}".format(floor, datetime.now().strftime("%H:%M:%S")))
-    interval = 1 if people < 20 else round(people / 10)
-    starting_time = time.perf_counter()
-    row = [work_out_one_cell(floor, p) for p in range(0, people + 1, interval)]
-    print("Finished floor {} in {}s".format(floor, round(time.perf_counter() - starting_time)))
-    return row
-
-
-def heatmap_comparison_multicored(max_people, max_floors, draw_heatmap: bool = True):
+def heatmap_comparison(max_people, max_floors, draw_heatmap: bool = True):
+    """
+    This function graphs a heatmap showing the difference in average wait time of the baseline and
+    my efficient algorithm where green represents the efficient algorithm having a lower average
+    wait time than the baseline, and red represents the baseline having a lower average wait time.
+    :param max_people:  the upper limit of the number of people.
+                        If 50, then the function will graph from zero to fifty people at intervals
+    :param max_floors:  the upper limit of the number of floors.
+                        If 30 then the the function will calculate and graph from 0 - 30 floors
+    :param draw_heatmap: whether or not to draw the heatmap. You can switch off and just get the data
+    :return: the results in a form which can be graphed by the interpolate_heatmap() function
+    """
     starting_time = time.perf_counter()
     interval = 1 if max_floors < 20 else round(max_floors / 10)
     top_args = [(i, max_people) for i in range(0, max_floors + 1, interval)]
     cpus = multiprocessing.cpu_count()
+    # Set this to a lower number if you want to use your computer for something else while simulating
+    # By default it will use all available cores
     print("Your computer has {} cpus".format(cpus))
     print("Working out heatmap for {}-{} floors in steps of {}".format(0, max_floors, interval))
-    p = multiprocessing.Pool(cpus - 4)
+    p = multiprocessing.Pool(cpus)
     results = p.starmap(work_out_whole_floor, top_args)
     p.close()
     p.join()
@@ -163,6 +147,13 @@ def heatmap_comparison_multicored(max_people, max_floors, draw_heatmap: bool = T
 
 
 def interpolate_heatmap(results, people, floors):
+    """
+    This function can be used to interpolate and graph data returned by the heatmap()
+    and heatmap_comparison() functions. It will display and save the plot to file
+    :param results: This is an array in the form: [[x, x, x], [x, x, x,], [x, x, x]] for 3x3 etc
+    :param people: this is the upper limit of the number of people in the data (used to scale axis)
+    :param floors: this is the upper limit of the number of floors in the data (used to scale axis)
+    """
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(12.80, 7.20))
     norm = colors.DivergingNorm(vcenter=0)
@@ -173,10 +164,10 @@ def interpolate_heatmap(results, people, floors):
     plt.ylim(2, len(results) - 1)
     plt.xticks(np.arange(0, len(results[0]), 1),
                [str(int(round(i))) for i in
-                np.arange(0, people + 1, round((people) / len(results[0]) + 1))])
+                np.arange(0, people + 1, round(people / len(results[0]) + 1))])
     plt.yticks(np.arange(0, len(results), 1),
                [str(int(round(i))) for i in
-                np.arange(0, floors + 1, round((floors) / len(results) + 1))])
+                np.arange(0, floors + 1, round(floors / len(results) + 1))])
     plt.title('Difference in efficiency between the baseline and my algorithm',
               fontname='Cambria', fontsize=24)
     colourbar = plt.colorbar()
@@ -185,10 +176,19 @@ def interpolate_heatmap(results, people, floors):
     plt.savefig("contourmap-{}.png".format(datetime.now().strftime("%H%M%S")), format="png")
 
 
-def graph_one_simulation_S_curve(algorithm, people, floors, iterations):
+def graph_one_algorithm_frequency_curve(algorithm, people, floors, iterations):
+    """
+    This function graphs a frequency curve for the results of iterations number of realisations of
+    the specified algorithm on a system with people and floors.
+    :param algorithm: the algorithm to use. Pick from 'baseline', 'inefficient' and 'efficient'
+    :param people: the number of people to be generated at the start of every simulation
+    :param floors: the number of floors in every simulation
+    :param iterations: the total number of simulations to run. generally about 10,000 is good
+    """
     results = realise_iterations(algorithm, people, floors, iterations)
     maximum = max(results)
     minimum = min(results)
+    average = sum(results) / len(results)
     x_axis = np.arange(minimum, maximum, 0.1)
     y_axis = {x: 0 for x in x_axis}
     for x in x_axis:
@@ -196,12 +196,13 @@ def graph_one_simulation_S_curve(algorithm, people, floors, iterations):
             if re < x:
                 y_axis[x] += 1
     y_axis = [y_axis[x] for x in x_axis]
-    print('X', x_axis)
-    print('Y', y_axis)
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(12.80, 7.20))
     plt.plot(x_axis, y_axis)
+    plt.plot([average, average], [0, plt.ylim()[1]], color='#2466c9',
+             label='Average=' + str(round(average, 1)))
     plt.xlim(xmin=0)
+    plt.legend()
     plt.xlabel('Wait time')
     plt.ylabel('Cumulative frequency')
     plt.title(
@@ -210,22 +211,27 @@ def graph_one_simulation_S_curve(algorithm, people, floors, iterations):
     plt.show()
 
 
-def graph_both_simulation_S_curve(people, floors, iterations):
-    # Need to add a average line to these plots ASAP!
-
+def graph_both_algorithms_frequency_curve(people, floors, iterations):
+    """
+    This function graphs the frequency curves for the baseline and efficient algorithms
+    on the same axis, with average lines also drawn in. This is useful for comparing their
+    performance on a particular number of floors and people.
+    :param iterations: the number of iterations of each algorithm to run. Higher = more accurate
+     """
     baseline_args = ('baseline', people, floors, iterations)
-    custom_args = ('efficient', people, floors, iterations)
-    # args = [baseline_args, custom_args]
-    # baseline_results, custom_results = multiprocessing.Pool().starmap(realise_iterations, args)
+    efficient_args = ('efficient', people, floors, iterations)
     baseline_results = realise_iterations_multicored(*baseline_args)
-    custom_results = realise_iterations_multicored(*custom_args)
+    efficient_results = realise_iterations_multicored(*efficient_args)
     print("Finished simulations, calculating graph at", datetime.now().strftime("%H:%M:%S"))
 
+    baseline_average = sum(baseline_results) / len(baseline_results)
+    efficient_average = sum(efficient_results) / len(efficient_results)
+
     def find_data_points(results):
+        """This gets the results into a form which can be easily graphed"""
         maximum = max(results)
         minimum = min(results)
         x_axis = np.arange(minimum, maximum, (maximum - minimum) / 1000)
-        print("Stepping in steps of", (maximum - minimum) / 1000)
         y_axis = {x: 0 for x in x_axis}
         for x in x_axis:
             for re in results:
@@ -237,9 +243,13 @@ def graph_both_simulation_S_curve(people, floors, iterations):
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(12.80, 7.20))
     baseline_points = find_data_points(baseline_results)
-    custom_points = find_data_points(custom_results)
+    efficient_points = find_data_points(efficient_results)
     plt.plot(*baseline_points, label="Baseline algorithm")
-    plt.plot(*custom_points, label="Efficient algorithm")
+    plt.plot(*efficient_points, label="Efficient algorithm")
+    plt.plot([baseline_average, baseline_average], [0, plt.ylim()[1]], color='#2466c9',
+             label='Baseline average=' + str(round(baseline_average, 1)))
+    plt.plot([efficient_average, efficient_average], [0, plt.ylim()[1]], color='#c94824',
+             label='Efficient average=' + str(round(efficient_average, 1)))
     plt.legend()
 
     def find_axis_limits(x1_values, y1_values, x2_values, y2_values):
@@ -263,7 +273,7 @@ def graph_both_simulation_S_curve(people, floors, iterations):
         x_max = max(x1_max, x2_max)
         return x_min, x_max
 
-    plt.xlim(find_axis_limits(*baseline_points, *custom_points))
+    plt.xlim(find_axis_limits(*baseline_points, *efficient_points))
     plt.xlabel('Wait time')
     plt.ylabel('Cumulative frequency')
     plt.title(
@@ -273,7 +283,16 @@ def graph_both_simulation_S_curve(people, floors, iterations):
     plt.show()
 
 
-def graph_one_simulation_frequency(algorithm, people, floors, iterations):
+def graph_single_algorithm_histogram(algorithm, people, floors, iterations):
+    """
+    This function graphs a histogram of the results of iterations number of realisations of a
+    specified algorithm. This can be helpful to see the spread/variance or
+    distribution of the wait times of a particular algorithm
+    :param algorithm: the algorithm to use. Pick from 'baseline', 'inefficient' and 'efficient'
+    :param people: the number of people to be generated at the start of every simulation
+    :param floors: the number of floors in every simulation
+    :param iterations: the total number of simulations to run. generally about 10,000 is good
+    """
     results = realise_iterations_multicored(algorithm, people, floors, iterations)
     maximum = round(max(results)) + 1
     minimum = round(min(results)) - 1
@@ -296,13 +315,22 @@ def graph_one_simulation_frequency(algorithm, people, floors, iterations):
     plt.show()
 
 
-def draw_box_plots(people, floors, iterations):
-    custom_results = realise_iterations('efficient', people, floors, iterations)
-    basline_results = realise_iterations('baseline', people, floors, iterations)
+def boxplot_comparison(people, floors, iterations):
+    """
+    This function graphs two boxplots to compare the distribution of results after iterations
+    number of reaslisations of the baseline and my efficient algorithm.
+    The center yellow line is the median, and the outer box is the interquartile range.
+    :param people: the number of people to be generated at the start of every simulation
+    :param floors: the number of floors in every simulation
+    :param iterations: the total number of simulations to run. generally about 1,000 is good
+    Too many iterations causes the outliers to look bad, so try keep this number below 1,000
+    """
+    efficient_results = realise_iterations_multicored('efficient', people, floors, iterations)
+    basline_results = realise_iterations_multicored('baseline', people, floors, iterations)
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(16, 6))
-    plt.boxplot(x=(custom_results, basline_results), vert=False, notch=False,
-                labels=(['Custom algorithm', 'Basline algorithm']), autorange=True)
+    plt.boxplot(x=(efficient_results, basline_results), vert=False, notch=False,
+                labels=(['Efficient algorithm', 'Baseline algorithm']), autorange=True)
     plt.xlabel('Average wait time')
     plt.title('Average wait times with {} floors and {} people'.format(floors, people))
     plt.show()
