@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import colors
 from matplotlib import pyplot as plt
 
-from Elevator.mechanical_control_model import single_simulation
+from mechanical_control_model import single_simulation
 
 
 def realise_iterations(algorithm, people, floors, iterations):
@@ -17,7 +17,8 @@ def realise_iterations(algorithm, people, floors, iterations):
                                                                     people, round(
             time.perf_counter() - starting_time)))
     results.extend(
-        [single_simulation(algorithm, people, floors, False) for j in range(round(iterations / 2))])
+        [single_simulation(algorithm, people, floors, 6, False) for j in
+         range(round(iterations / 2))])
     return results
 
 
@@ -46,22 +47,21 @@ def realise_iterations_multicored(algorithm, people, floors, iterations):
     return results
 
 
-def work_out_one_cell(floor, people):
+def work_out_one_cell(algorithm, floor, people):
     """This is a helper method for the heatmaping function"""
-    baseline_results = realise_iterations('baseline', people, floor, 20000)
-    efficient_results = realise_iterations('efficient', people, floor, 20000)
-    return sum(baseline_results) / len(baseline_results) - sum(efficient_results) / len(
-        efficient_results)
+    cell_result = realise_iterations(algorithm, people, floor, 20000)
+    return sum(cell_result) / len(cell_result)
 
 
-def work_out_whole_floor(floor, people):
+def work_out_whole_floor(algorithm, floor, people):
     """This is a helper method for the heatmap comparison function"""
     print("Starting to work out floor {} at {}".format(floor, datetime.now().strftime("%H:%M:%S")))
-    interval = 1 if people < 20 else round(people / 10)
-    starting_time = time.perf_counter()
-    row = [work_out_one_cell(floor, p) for p in range(0, people + 1, interval)]
-    print("Finished floor {} in {}s".format(floor, round(time.perf_counter() - starting_time)))
+    inner_starting_time = time.perf_counter()
+    row = [work_out_one_cell(algorithm, floor, person) for person in range(people)]
+    print(
+        "Finished floor {} in {}s".format(floor, round(time.perf_counter() - inner_starting_time)))
     return row
+
 
 
 def heatmap(algorithm, max_people, max_floors):
@@ -71,15 +71,25 @@ def heatmap(algorithm, max_people, max_floors):
     It will print the results, return the results and draw the graph
     :returns the data in a form that can be drawn with the interpolate_heatmap() function"""
     starting_time = time.perf_counter()
-    results = np.zeros(shape=(max_floors, max_people))
-    for i in range(max_floors):
-        for j in range(max_people):
-            result = realise_iterations_multicored(algorithm, j, i, 500)
-            results[i, j] = sum(result) / len(result)
-        # print('With', i, 'floors, data is', results[i])
-        time_taken = round(time.perf_counter() - starting_time)
-        print(
-            'Simulation {}% complete in {} seconds'.format(round(i / max_floors * 100), time_taken))
+
+    args = [(algorithm, i, max_people) for i in range(max_floors)]
+
+    cpus = multiprocessing.cpu_count()
+    p = multiprocessing.Pool(cpus)
+    results = p.starmap(work_out_whole_floor, args)
+    p.close()
+    p.join()
+
+    # results = [[0]*max_people] * max_floors
+    # for i in range(max_floors):
+    #     for j in range(max_people):
+    #         result = realise_iterations_multicored(algorithm, j, i, 500)
+    #         results[i][j] = sum(result) / len(result)
+    #     # print('With', i, 'floors, data is', results[i])
+    #     time_taken = round(time.perf_counter() - inner_starting_time)
+    #     print(
+    #         'Simulation {}% complete in {} seconds'.format(round(i / max_floors * 100), time_taken))
+
     print(results)
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(12.80, 7.20))
@@ -88,11 +98,29 @@ def heatmap(algorithm, max_people, max_floors):
     plt.ylabel('Number of floors')
     plt.xlim(2, max_people)
     plt.ylim(2, max_floors)
-    plt.title('Heatmap showing the relative efficiency of {} algorithm'.format(algorithm),
+    plt.title('Heatmap showing the average wait time of {} algorithm'.format(algorithm),
               fontname='Cambria', fontsize=24)
     plt.colorbar()
     plt.show()
     return results, max_people, max_floors
+
+
+def work_out_one_cell_comparison(floor, people):
+    """This is a helper method for the heatmaping function"""
+    baseline_results = realise_iterations('baseline', people, floor, 20000)
+    efficient_results = realise_iterations('efficient', people, floor, 20000)
+    return sum(baseline_results) / len(baseline_results) - sum(efficient_results) / len(
+        efficient_results)
+
+
+def work_out_whole_floor_comparison(floor, people):
+    """This is a helper method for the heatmap comparison function"""
+    print("Starting to work out floor {} at {}".format(floor, datetime.now().strftime("%H:%M:%S")))
+    interval = 1 if people < 20 else round(people / 10)
+    starting_time = time.perf_counter()
+    row = [work_out_one_cell_comparison(floor, p) for p in range(0, people + 1, interval)]
+    print("Finished floor {} in {}s".format(floor, round(time.perf_counter() - starting_time)))
+    return row
 
 
 def heatmap_comparison(max_people, max_floors, draw_heatmap: bool = True):
@@ -108,15 +136,16 @@ def heatmap_comparison(max_people, max_floors, draw_heatmap: bool = True):
     :return: the results in a form which can be graphed by the interpolate_heatmap() function
     """
     starting_time = time.perf_counter()
+
     interval = 1 if max_floors < 20 else round(max_floors / 10)
     top_args = [(i, max_people) for i in range(0, max_floors + 1, interval)]
-    cpus = multiprocessing.cpu_count()
+    cpus = multiprocessing.cpu_count() - 4
     # Set this to a lower number if you want to use your computer for something else while simulating
     # By default it will use all available cores
     print("Your computer has {} cpus".format(cpus))
     print("Working out heatmap for {}-{} floors in steps of {}".format(0, max_floors, interval))
     p = multiprocessing.Pool(cpus)
-    results = p.starmap(work_out_whole_floor, top_args)
+    results = p.starmap(work_out_whole_floor_comparison, top_args)
     p.close()
     p.join()
     finishing_time = time.perf_counter()

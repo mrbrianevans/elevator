@@ -1,7 +1,7 @@
 import time
 from tkinter import Tk, Canvas
 
-from Elevator.PersonFile import Person
+from PersonFile import Person
 
 
 def single_simulation(algorithm, number_of_people, number_of_floors, max_elevator_capacity=6,
@@ -39,16 +39,15 @@ def single_simulation(algorithm, number_of_people, number_of_floors, max_elevato
         600 / number_of_floors)  # This is for animating people. Total size is 600px
     total_population = []  # This will hold all the Person objects
     elevator_population = []  # This monitors how many people are in the elevator at any one time
-    max_elevator_capacity = 6  # This restricts how many people can be in the elevator at any time
     # This monitors how many people are waiting on each floor for the lift
     floor_population = [0] * (number_of_floors + 1)
     elevator_floor = 0  # starts on ground zero floor
     target_floor = 0  # This is where the lift is going to at any given time
     if animate:  # this sets up the canvas with the elevator and floors etc if animate is true
-        animation_speed = 0.1  # This affects how long the animations take. Higher = longer
         arrivals_population = [0] * (number_of_floors + 1)  # This is for animating purposes only
         elevator_animation = [0] * max_elevator_capacity  # This is for people inside the elevator
         tk = Tk()
+        tk.attributes("-fullscreen", True)
         canvas = Canvas(tk, width=2000, height=1000)
         tk.title('Elevator - {} algorithm'.format(algorithm))
         canvas.pack()
@@ -281,6 +280,8 @@ def single_simulation(algorithm, number_of_people, number_of_floors, max_elevato
     longest_wait_time = max(wait_times)
     average_wait_time = sum(wait_times) / number_of_people
     if animate:
+        canvas.create_text(200, 900, text="Average wait time: " + str(round(average_wait_time, 1)),
+                           font=("Cambria", 20))
         tk.mainloop()
         print('Longest wait', longest_wait_time)
         print('Shortest wait', min(wait_times))
