@@ -1,6 +1,9 @@
 import multiprocessing
 import time
 from datetime import datetime
+
+from pip._internal.utils import deprecation
+
 from Elevator.mechanical_control_model import single_simulation
 import numpy as np
 from matplotlib import colors
@@ -46,6 +49,7 @@ def heatmap(algorithm, max_people, max_floors):
     """This function draws a heatmap for a single algorithm
     from 0-max_people on the x-axis and
     from 0-max_floors on the y-axis
+    It will print the results, return the results and draw the graph
     :returns the data in a form that can be drawn with the interpolate_heatmap() function"""
     starting_time = time.perf_counter()
     results = np.zeros(shape=(max_floors, max_people))
@@ -54,10 +58,9 @@ def heatmap(algorithm, max_people, max_floors):
             result = realise_iterations_multicored(algorithm, j, i, 500)
             results[i, j] = sum(result) / len(result)
         # print('With', i, 'floors, data is', results[i])
+        time_taken = round(time.perf_counter() - starting_time)
         print(
-            'Simulation {}% complete in {} seconds'.format(round(i / max_floors * 100),
-                                                           round(
-                                                               time.perf_counter() - starting_time)))
+            'Simulation {}% complete in {} seconds'.format(round(i / max_floors * 100), time_taken))
     print(results)
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(12.80, 7.20))
@@ -66,12 +69,14 @@ def heatmap(algorithm, max_people, max_floors):
     plt.ylabel('Number of floors')
     plt.xlim(2, max_people)
     plt.ylim(2, max_floors)
-    plt.title('Heatmap showing the relative efficiency of {} algorithm'.format(algorithm))
+    plt.title('Heatmap showing the relative efficiency of {} algorithm'.format(algorithm),
+              fontname='Cambria', fontsize=24)
     plt.colorbar()
     plt.show()
     return results, max_people, max_floors
 
 
+# delete this function i think
 def heatmap_comparison(max_people, max_floors):
     starting_time = time.perf_counter()
     results = np.zeros(shape=(max_floors, max_people))
@@ -95,7 +100,8 @@ def heatmap_comparison(max_people, max_floors):
     plt.ylabel('Number of floors')
     plt.xlim(2, max_people)
     plt.ylim(2, max_floors)
-    plt.title('Difference in efficiency between the baseline and my algorithm')
+    plt.title('Difference in efficiency between the baseline and my algorithm',
+              fontname='Cambria', fontsize=24)
     plt.colorbar()
     plt.savefig("heatmap.png", format="png")
     plt.show()
@@ -104,7 +110,7 @@ def heatmap_comparison(max_people, max_floors):
 
 def work_out_one_cell(floor, people):
     baseline_results = realise_iterations('baseline', people, floor, 20000)
-    custom_results = realise_iterations('newsolution', people, floor, 20000)
+    custom_results = realise_iterations('efficient', people, floor, 20000)
     return sum(baseline_results) / len(baseline_results) - sum(custom_results) / len(
         custom_results)
 
@@ -208,7 +214,7 @@ def graph_both_simulation_S_curve(people, floors, iterations):
     # Need to add a average line to these plots ASAP!
 
     baseline_args = ('baseline', people, floors, iterations)
-    custom_args = ('newsolution', people, floors, iterations)
+    custom_args = ('efficient', people, floors, iterations)
     # args = [baseline_args, custom_args]
     # baseline_results, custom_results = multiprocessing.Pool().starmap(realise_iterations, args)
     baseline_results = realise_iterations_multicored(*baseline_args)
@@ -272,12 +278,13 @@ def graph_one_simulation_frequency(algorithm, people, floors, iterations):
     maximum = round(max(results)) + 1
     minimum = round(min(results)) - 1
     average = sum(results) / len(results)
-    x_axis = np.arange(minimum, maximum, 0.1)
+    x_axis = np.arange(minimum, maximum, 1)
     plt.figure(figsize=(12.80, 7.20))
     plt.hist(x=results, bins=x_axis, density=True, color='#eb4034')
     plt.plot([average, average], [0, plt.ylim()[1]], color='#591208',
-             label='Average=' + str(average))
-    plt.xlim(xmin=0, xmax=people * floors / 3)
+             label='Average=' + str(round(average, 1)))
+    plt.xlim(xmin=0, xmax=30)  # round(plt.xlim()[1] + 5.1, -1)
+    print("Bins are", x_axis)
     plt.xlabel('Wait time')
     plt.ylabel('Frequency density')
     plt.legend()
@@ -290,7 +297,7 @@ def graph_one_simulation_frequency(algorithm, people, floors, iterations):
 
 
 def draw_box_plots(people, floors, iterations):
-    custom_results = realise_iterations('mysolution', people, floors, iterations)
+    custom_results = realise_iterations('efficient', people, floors, iterations)
     basline_results = realise_iterations('baseline', people, floors, iterations)
     plt.style.use('fivethirtyeight')
     plt.figure(figsize=(16, 6))

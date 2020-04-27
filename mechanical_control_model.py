@@ -10,7 +10,7 @@ from Elevator.PersonFile import Person
 
 def single_simulation(algorithm, number_of_people, number_of_floors, animate=True,
                       animation_speed=0.1):
-    assert algorithm == "baseline" or algorithm == "mysolution" or algorithm == "newsolution"
+    assert algorithm == "baseline" or algorithm == "inefficient" or algorithm == "efficient"
     if number_of_floors < 2 or number_of_people < 2:
         return 0  # simulations can't run on less than 2 floors or 2 people
 
@@ -133,7 +133,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
             elif elevator_floor == number_of_floors - 1:
                 elevator_direction = -1
                 target_floor = 0
-        elif algorithm == "mysolution":
+        elif algorithm == "inefficient":
             if len(elevator_population) == MAX_ELEVATOR_CAPACITY and target_floor == elevator_floor:
                 # if the elevator is full, then conduct a vote of the people inside.
                 elevator_buttons = [False] * number_of_floors  # reset elevator buttons
@@ -221,7 +221,7 @@ def single_simulation(algorithm, number_of_people, number_of_floors, animate=Tru
                 print("elevator is on floor", elevator_floor)
                 exit()
             elevator_direction = 1 if target_floor > elevator_floor else -1
-        elif algorithm == "newsolution":  # This is the more efficient solution than the baseline
+        elif algorithm == "efficient":  # This is the more efficient solution than the baseline
             elevator_buttons = [False] * number_of_floors  # reset elevator buttons
             for person in elevator_population:
                 elevator_buttons[person.target_floor] = True
